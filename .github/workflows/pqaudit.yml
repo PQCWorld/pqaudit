@@ -1,0 +1,28 @@
+name: PQC Audit (self-scan)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pqaudit:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run pqaudit on itself
+        run: npx tsx src/cli.ts . --format sarif --output pqaudit-results.sarif --severity safe
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: pqaudit-results.sarif
+          category: pqaudit
