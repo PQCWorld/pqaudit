@@ -33,11 +33,15 @@
     "ml-kem",
     "ml-dsa"
   ],
-  "author": "Funktsioon OÜ",
+  "author": "PQCWorld",
   "license": "MIT",
+  "homepage": "https://pqcworld.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/funktsioon/pqaudit"
+    "url": "https://github.com/PQCWorld/pqaudit"
+  },
+  "bugs": {
+    "url": "https://github.com/PQCWorld/pqaudit/issues"
   },
   "engines": {
     "node": ">=20.0.0"

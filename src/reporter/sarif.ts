@@ -17,7 +17,7 @@ export function formatSarif(result: ScanResult): string {
           driver: {
             name: "pqaudit",
             version: "0.1.0",
-            informationUri: "https://github.com/funktsioon/pqaudit",
+            informationUri: "https://github.com/PQCWorld/pqaudit",
             rules: rules.map((r) => ({
               id: r.ruleId,
               shortDescription: { text: r.algorithm },
