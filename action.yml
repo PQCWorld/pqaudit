@@ -1,0 +1,45 @@
+name: "PQAudit — Post-Quantum Cryptography Scanner"
+description: "Scan your codebase for quantum-vulnerable cryptography and generate CBOM"
+author: "Funktsioon OÜ"
+
+inputs:
+  target:
+    description: "Directory to scan"
+    required: false
+    default: "."
+  format:
+    description: "Output format: text, json, cbom, sarif"
+    required: false
+    default: "sarif"
+  severity:
+    description: "Minimum severity to report"
+    required: false
+    default: "safe"
+  fail-on-findings:
+    description: "Fail the action if critical/high findings exist"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Run pqaudit
+      shell: bash
+      run: |
+        npx pqaudit@latest ${{ inputs.target }} \
+          --format ${{ inputs.format }} \
+          --severity ${{ inputs.severity }} \
+          --output pqaudit-results.${{ inputs.format == 'sarif' && 'sarif' || inputs.format == 'cbom' && 'json' || inputs.format }} \
+          ${{ inputs.fail-on-findings == 'true' && '--ci' || '' }}
+
+    - name: Upload SARIF
+      if: inputs.format == 'sarif' && always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: pqaudit-results.sarif
+        category: pqaudit

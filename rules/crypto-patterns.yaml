@@ -1,0 +1,350 @@
+# PQC Audit Detection Rules
+# Each rule defines a pattern to detect quantum-vulnerable (or safe) cryptography
+#
+# Severity levels:
+#   critical - Broken by Shor's algorithm (RSA, ECC, DH key exchange/signatures)
+#   high     - Weakened by Grover's algorithm (AES-128, small key sizes)
+#   medium   - Already weak classically (MD5, SHA-1, 3DES)
+#   low      - Safe but worth documenting for inventory
+#   safe     - Already quantum-resistant (ML-KEM, ML-DSA, AES-256, SHA-256)
+
+# =============================================================================
+# CRITICAL: Quantum-vulnerable asymmetric cryptography (Shor's algorithm)
+# =============================================================================
+
+- id: RSA_KEY_GEN
+  description: "RSA key generation — all RSA key sizes are vulnerable to Shor's algorithm"
+  severity: critical
+  category: kem
+  algorithm: RSA
+  replacement: ML-KEM-768 (FIPS 203) for encryption, ML-DSA-65 (FIPS 204) for signatures
+  effort: complex
+  languages: []
+  patterns:
+    - "rsa\\.GenerateKey"
+    - "RSA\\.generate"
+    - "rsa_generate_key"
+    - "generateKeyPair\\s*\\(.*['\"]RSA['\"]"
+    - "KeyPairGenerator\\.getInstance\\s*\\(.*['\"]RSA['\"]"
+    - "crypto\\.generateKeyPairSync\\s*\\(.*['\"]rsa['\"]"
+    - "new\\s+RSAKeyGenParameterSpec"
+    - "RSA_generate_key_ex"
+    - "openssl_pkey_new.*RSA"
+
+- id: RSA_ENCRYPT
+  description: "RSA encryption — vulnerable to quantum factoring"
+  severity: critical
+  category: kem
+  algorithm: RSA
+  replacement: ML-KEM-768 (FIPS 203)
+  effort: complex
+  languages: []
+  patterns:
+    - "RSA/ECB/"
+    - "RSA/NONE/"
+    - "RSAES-OAEP"
+    - "RSA_public_encrypt"
+    - "rsa\\.encrypt"
+    - "PKCS1_OAEP"
+    - "PKCS1_v1_5"
+    - "crypto\\.publicEncrypt"
+    - "crypto\\.privateDecrypt"
+
+- id: RSA_SIGN
+  description: "RSA signature — vulnerable to quantum factoring"
+  severity: critical
+  category: signature
+  algorithm: RSA
+  replacement: ML-DSA-65 (FIPS 204)
+  effort: complex
+  languages: []
+  patterns:
+    - "SHA256withRSA"
+    - "SHA384withRSA"
+    - "SHA512withRSA"
+    - "RS256"
+    - "RS384"
+    - "RS512"
+    - "PS256"
+    - "PS384"
+    - "PS512"
+    - "RSASSA-PSS"
+    - "RSA_sign"
+    - "rsa\\.sign"
+
+- id: ECDSA_USAGE
+  description: "ECDSA signatures — vulnerable to Shor's algorithm on elliptic curves"
+  severity: critical
+  category: signature
+  algorithm: ECDSA
+  replacement: ML-DSA-65 (FIPS 204)
+  effort: complex
+  languages: []
+  patterns:
+    - "ECDSA"
+    - "ES256"
+    - "ES384"
+    - "ES512"
+    - "SHA256withECDSA"
+    - "ec\\.sign"
+    - "ec\\.verify"
+    - "ECDSA_sign"
+    - "ECDSA_verify"
+    - "secp256k1"
+    - "secp256r1"
+    - "secp384r1"
+    - "prime256v1"
+    - "P-256"
+    - "P-384"
+    - "P-521"
+
+- id: ED25519_USAGE
+  description: "Ed25519 signatures — elliptic curve, vulnerable to Shor's algorithm"
+  severity: critical
+  category: signature
+  algorithm: Ed25519
+  replacement: ML-DSA-65 (FIPS 204) or hybrid Ed25519+ML-DSA-65
+  effort: moderate
+  languages: []
+  patterns:
+    - "ed25519"
+    - "Ed25519"
+    - "ED25519"
+    - "@noble/ed25519"
+    - "ed25519-dalek"
+    - "crypto\\.sign\\s*\\(.*ed25519"
+    - "nacl\\.sign"
+    - "tweetnacl.*sign"
+    - "sodium.*sign"
+    - "EdDSA"
+
+- id: ECDH_KEY_EXCHANGE
+  description: "ECDH key exchange — vulnerable to Shor's algorithm"
+  severity: critical
+  category: kem
+  algorithm: ECDH
+  replacement: ML-KEM-768 (FIPS 203) or hybrid X25519+ML-KEM-768
+  effort: complex
+  languages: []
+  patterns:
+    - "ECDH"
+    - "ecdh\\.computeSecret"
+    - "X25519"
+    - "x25519"
+    - "Curve25519"
+    - "curve25519"
+    - "createECDH"
+    - "diffieHellman"
+    - "DiffieHellman"
+    - "KeyAgreement.*EC"
+
+- id: DH_KEY_EXCHANGE
+  description: "Diffie-Hellman key exchange — vulnerable to Shor's algorithm"
+  severity: critical
+  category: kem
+  algorithm: DH
+  replacement: ML-KEM-768 (FIPS 203)
+  effort: complex
+  languages: []
+  patterns:
+    - "DiffieHellman"
+    - "createDiffieHellman"
+    - "DH_generate_key"
+    - "DHParameterSpec"
+    - "dh\\.generateKeys"
+    - "dh\\.computeSecret"
+
+- id: DSA_USAGE
+  description: "DSA signatures — vulnerable to Shor's algorithm"
+  severity: critical
+  category: signature
+  algorithm: DSA
+  replacement: ML-DSA-65 (FIPS 204)
+  effort: complex
+  languages: []
+  patterns:
+    - "DSA\\.generate"
+    - "KeyPairGenerator.*DSA"
+    - "SHA256withDSA"
+    - "DSA_generate_key"
+
+# =============================================================================
+# HIGH: Weakened by Grover's algorithm
+# =============================================================================
+
+- id: AES_128
+  description: "AES-128 — Grover's algorithm reduces effective security to 64 bits"
+  severity: high
+  category: symmetric
+  algorithm: AES-128
+  replacement: AES-256 (trivial upgrade — same API, different key size)
+  effort: trivial
+  languages: []
+  patterns:
+    - "AES-128"
+    - "aes-128"
+    - "AES/.*128"
+    - "createCipheriv\\s*\\(.*aes-128"
+    - "Cipher\\.getInstance.*AES.*128"
+
+# =============================================================================
+# MEDIUM: Already weak classically
+# =============================================================================
+
+- id: MD5_USAGE
+  description: "MD5 — broken classically, trivially broken by quantum"
+  severity: medium
+  category: hash
+  algorithm: MD5
+  replacement: SHA-256 or SHA-3
+  effort: trivial
+  languages: []
+  patterns:
+    - "md5"
+    - "MD5"
+    - "createHash\\s*\\(.*['\"]md5['\"]"
+    - "MessageDigest.*MD5"
+    - "hashlib\\.md5"
+
+- id: SHA1_USAGE
+  description: "SHA-1 — collision attacks known, should migrate regardless of quantum"
+  severity: medium
+  category: hash
+  algorithm: SHA-1
+  replacement: SHA-256 or SHA-3
+  effort: trivial
+  languages: []
+  patterns:
+    - "sha-?1(?!\\d)"
+    - "SHA-?1(?!\\d)"
+    - "createHash\\s*\\(.*['\"]sha1['\"]"
+    - "MessageDigest.*SHA.1"
+    - "hashlib\\.sha1"
+
+- id: DES_3DES
+  description: "DES/3DES — deprecated, 64-bit block size"
+  severity: medium
+  category: symmetric
+  algorithm: 3DES
+  replacement: AES-256
+  effort: moderate
+  languages: []
+  patterns:
+    - "DES"
+    - "3DES"
+    - "DESede"
+    - "TripleDES"
+    - "des-ede3"
+    - "des-cbc"
+
+# =============================================================================
+# SAFE: Already quantum-resistant (document for inventory)
+# =============================================================================
+
+- id: ML_KEM
+  description: "ML-KEM (Kyber) — NIST FIPS 203 post-quantum key encapsulation"
+  severity: safe
+  category: kem
+  algorithm: ML-KEM
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "ml.kem"
+    - "ML-KEM"
+    - "ML_KEM"
+    - "mlKem"
+    - "kyber"
+    - "KYBER"
+    - "Kyber768"
+    - "Kyber1024"
+    - "@noble/post-quantum.*kem"
+
+- id: ML_DSA
+  description: "ML-DSA (Dilithium) — NIST FIPS 204 post-quantum signatures"
+  severity: safe
+  category: signature
+  algorithm: ML-DSA
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "ml.dsa"
+    - "ML-DSA"
+    - "ML_DSA"
+    - "mlDsa"
+    - "dilithium"
+    - "DILITHIUM"
+    - "Dilithium"
+    - "@noble/post-quantum.*dsa"
+
+- id: SLH_DSA
+  description: "SLH-DSA (SPHINCS+) — NIST FIPS 205 hash-based post-quantum signatures"
+  severity: safe
+  category: signature
+  algorithm: SLH-DSA
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "slh.dsa"
+    - "SLH-DSA"
+    - "SLH_DSA"
+    - "sphincs"
+    - "SPHINCS"
+
+- id: AES_256
+  description: "AES-256 — 128-bit post-quantum security, sufficient"
+  severity: safe
+  category: symmetric
+  algorithm: AES-256
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "AES-256"
+    - "aes-256"
+    - "aes-256-gcm"
+    - "aes-256-cbc"
+
+- id: CHACHA20
+  description: "ChaCha20-Poly1305 — symmetric AEAD, quantum-resistant"
+  severity: safe
+  category: symmetric
+  algorithm: ChaCha20-Poly1305
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "chacha20"
+    - "ChaCha20"
+    - "CHACHA20"
+    - "chacha20-poly1305"
+    - "xchacha20"
+
+- id: SHA256_SAFE
+  description: "SHA-256 — quantum-resistant hash (Grover reduces to 128-bit, still safe)"
+  severity: safe
+  category: hash
+  algorithm: SHA-256
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "sha-?256"
+    - "SHA-?256"
+    - "createHash\\s*\\(.*['\"]sha256['\"]"
+
+- id: SHA3_SAFE
+  description: "SHA-3 — quantum-resistant hash"
+  severity: safe
+  category: hash
+  algorithm: SHA-3
+  replacement: null
+  effort: trivial
+  languages: []
+  patterns:
+    - "sha-?3"
+    - "SHA-?3"
+    - "keccak"
+    - "KECCAK"
