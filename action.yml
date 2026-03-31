@@ -1,6 +1,6 @@
 name: "PQAudit — Post-Quantum Cryptography Scanner"
 description: "Scan your codebase for quantum-vulnerable cryptography and generate CBOM"
-author: "Funktsioon OÜ"
+author: "PQCWorld"
 
 inputs:
   target:
