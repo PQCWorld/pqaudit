@@ -1,0 +1,58 @@
+{
+  "name": "pqaudit",
+  "version": "0.1.0",
+  "description": "Post-quantum cryptography readiness scanner. Finds quantum-vulnerable cryptography in your codebase and generates CycloneDX CBOM.",
+  "type": "module",
+  "bin": {
+    "pqaudit": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "rules"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "pqc",
+    "post-quantum",
+    "cryptography",
+    "security",
+    "scanner",
+    "cbom",
+    "cyclonedx",
+    "quantum",
+    "audit",
+    "ml-kem",
+    "ml-dsa"
+  ],
+  "author": "Funktsioon OÜ",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/funktsioon/pqaudit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "glob": "^11.0.0",
+    "yaml": "^2.7.0",
+    "chalk": "^5.4.0",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "eslint": "^9.20.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

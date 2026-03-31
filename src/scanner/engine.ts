@@ -1,0 +1,139 @@
+import { resolve, relative } from "node:path";
+import { glob } from "glob";
+import type {
+  CryptoCategory,
+  Finding,
+  ScanConfig,
+  ScanResult,
+  ScanSummary,
+  Severity,
+  SEVERITY_ORDER,
+} from "../types.js";
+import { loadRules } from "./rules.js";
+import { scanFile } from "./file-scanner.js";
+import { scanNpmDependencies } from "./dependency-scanner.js";
+
+const DEFAULT_EXCLUDE = [
+  "**/node_modules/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/.git/**",
+  "**/vendor/**",
+  "**/target/**",
+  "**/__pycache__/**",
+  "**/.venv/**",
+  "**/coverage/**",
+  "**/*.min.js",
+  "**/*.map",
+  "**/package-lock.json",
+  "**/yarn.lock",
+  "**/pnpm-lock.yaml",
+  "**/Cargo.lock",
+];
+
+const SOURCE_EXTENSIONS =
+  "**/*.{js,mjs,cjs,jsx,ts,tsx,mts,cts,py,go,rs,java,kt,kts,cs,c,h,cpp,cc,hpp,swift,rb,php,toml,yaml,yml,json,xml,conf,cfg,ini,env,pem,crt,cer}";
+
+export async function scan(config: ScanConfig): Promise<ScanResult> {
+  const target = resolve(config.target);
+  const rules = loadRules(config.rulesDir);
+
+  // Discover files
+  const excludePatterns = [...DEFAULT_EXCLUDE, ...(config.exclude ?? [])];
+  const includePatterns = config.include ?? [SOURCE_EXTENSIONS];
+
+  const files: string[] = [];
+  for (const pattern of includePatterns) {
+    const matched = await glob(pattern, {
+      cwd: target,
+      absolute: true,
+      ignore: excludePatterns,
+      nodir: true,
+    });
+    files.push(...matched);
+  }
+
+  // Deduplicate
+  const uniqueFiles = [...new Set(files)];
+
+  // Scan files
+  const allFindings: Finding[] = [];
+
+  for (const file of uniqueFiles) {
+    const rel = relative(target, file);
+    const fileFindings = scanFile(file, rel, rules);
+    allFindings.push(...fileFindings);
+  }
+
+  // Scan dependencies
+  if (config.scanDependencies) {
+    const depFindings = scanNpmDependencies(target);
+    allFindings.push(...depFindings);
+  }
+
+  // Filter by minimum severity
+  const severityOrder: Record<Severity, number> = {
+    critical: 0,
+    high: 1,
+    medium: 2,
+    low: 3,
+    safe: 4,
+  };
+
+  const minLevel = severityOrder[config.minSeverity];
+  const filtered = allFindings.filter(
+    (f) => severityOrder[f.severity] <= minLevel,
+  );
+
+  // Sort: critical first, then by file
+  filtered.sort((a, b) => {
+    const sevDiff = severityOrder[a.severity] - severityOrder[b.severity];
+    if (sevDiff !== 0) return sevDiff;
+    return a.location.file.localeCompare(b.location.file);
+  });
+
+  // Build summary
+  const summary = buildSummary(filtered, uniqueFiles.length);
+
+  return {
+    timestamp: new Date().toISOString(),
+    target: config.target,
+    findings: filtered,
+    summary,
+  };
+}
+
+function buildSummary(findings: Finding[], filesScanned: number): ScanSummary {
+  const bySeverity: Record<Severity, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    safe: 0,
+  };
+
+  const byCategory: Record<CryptoCategory, number> = {
+    kem: 0,
+    signature: 0,
+    hash: 0,
+    symmetric: 0,
+    protocol: 0,
+    kdf: 0,
+  };
+
+  for (const f of findings) {
+    bySeverity[f.severity]++;
+    byCategory[f.category]++;
+  }
+
+  const pqcReady =
+    bySeverity.critical === 0 && bySeverity.high === 0;
+
+  return {
+    filesScanned,
+    findingsTotal: findings.length,
+    bySeverity,
+    byCategory,
+    pqcReady,
+  };
+}
