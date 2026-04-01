@@ -3,6 +3,7 @@
 [![CI](https://github.com/PQCWorld/pqaudit/actions/workflows/ci.yml/badge.svg)](https://github.com/PQCWorld/pqaudit/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/pqaudit)](https://www.npmjs.com/package/pqaudit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/node/v/pqaudit)](https://nodejs.org)
 
 Scan codebases for quantum-vulnerable cryptography. Get a clear picture of what needs to migrate before [Q-Day](https://en.wikipedia.org/wiki/Q-day).
 
