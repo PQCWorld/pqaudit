@@ -33,6 +33,7 @@ program
   .option("--include <patterns...>", "File patterns to include")
   .option("--exclude <patterns...>", "Additional file patterns to exclude")
   .option("--rules <dir>", "Path to custom rules YAML file")
+  .option("--min-confidence <number>", "Minimum confidence 0-100 (default 50)", "50")
   .option("--dedupe", "Collapse duplicate findings per file (default: true)")
   .option("--no-dedupe", "Show all occurrences instead of collapsing duplicates")
   .option("--ci", "Exit with code 1 if critical/high findings exist")
@@ -46,6 +47,7 @@ program
       include: opts.include,
       exclude: opts.exclude,
       rulesDir: opts.rules,
+      minConfidence: Number(opts.minConfidence),
       dedupe: opts.dedupe !== false,
     };
 
