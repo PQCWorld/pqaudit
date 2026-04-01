@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in pqaudit itself, please report it responsibly:
 
-**Email:** security@pqcworld.com
+**Email:** info@pqcworld.com
 
 Do not open a public GitHub issue for security vulnerabilities.
 
