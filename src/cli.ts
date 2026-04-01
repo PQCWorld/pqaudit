@@ -33,6 +33,8 @@ program
   .option("--include <patterns...>", "File patterns to include")
   .option("--exclude <patterns...>", "Additional file patterns to exclude")
   .option("--rules <dir>", "Path to custom rules YAML file")
+  .option("--dedupe", "Collapse duplicate findings per file (default: true)")
+  .option("--no-dedupe", "Show all occurrences instead of collapsing duplicates")
   .option("--ci", "Exit with code 1 if critical/high findings exist")
   .action(async (target: string, opts) => {
     const config: ScanConfig = {
@@ -44,6 +46,7 @@ program
       include: opts.include,
       exclude: opts.exclude,
       rulesDir: opts.rules,
+      dedupe: opts.dedupe !== false,
     };
 
     const result = await scan(config);
