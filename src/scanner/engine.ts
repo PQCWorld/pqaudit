@@ -71,6 +71,12 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
     allFindings.push(...depFindings);
   }
 
+  // Filter by minimum confidence
+  const minConfidence = config.minConfidence ?? 50;
+  const confidenceFiltered = allFindings.filter(
+    (f) => f.confidence * 100 >= minConfidence,
+  );
+
   // Filter by minimum severity
   const severityOrder: Record<Severity, number> = {
     critical: 0,
@@ -81,7 +87,7 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
   };
 
   const minLevel = severityOrder[config.minSeverity];
-  const filtered = allFindings.filter(
+  const filtered = confidenceFiltered.filter(
     (f) => severityOrder[f.severity] <= minLevel,
   );
 
