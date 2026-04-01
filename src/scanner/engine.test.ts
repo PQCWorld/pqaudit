@@ -95,13 +95,13 @@ describe("scan engine", () => {
   });
 
   it("filters low-confidence comment findings when minConfidence is 50", async () => {
-    // With no confidence filter (minConfidence=0), we get comment-based findings
-    const allResult = await scan(makeConfig({ minConfidence: 0 }));
+    // Disable dedupe so comment findings aren't collapsed with code findings
+    const allResult = await scan(makeConfig({ minConfidence: 0, dedupe: false }));
     const lowConfidence = allResult.findings.filter((f) => f.confidence < 0.5);
     expect(lowConfidence.length).toBeGreaterThan(0);
 
     // With minConfidence=50 (default), comment matches are filtered out
-    const filteredResult = await scan(makeConfig({ minConfidence: 50 }));
+    const filteredResult = await scan(makeConfig({ minConfidence: 50, dedupe: false }));
     const stillLow = filteredResult.findings.filter((f) => f.confidence < 0.5);
     expect(stillLow.length).toBe(0);
 
