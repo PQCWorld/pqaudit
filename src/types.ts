@@ -85,6 +85,8 @@ export interface ScanConfig {
   scanDependencies: boolean;
   /** Custom rules directory */
   rulesDir?: string;
+  /** Minimum confidence threshold 0-100 (findings below this are filtered out, default 50) */
+  minConfidence?: number;
 }
 
 /** Scan result summary */

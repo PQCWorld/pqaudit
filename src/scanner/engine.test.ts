@@ -94,6 +94,23 @@ describe("scan engine", () => {
     }
   });
 
+  it("filters low-confidence comment findings when minConfidence is 50", async () => {
+    // With no confidence filter (minConfidence=0), we get comment-based findings
+    const allResult = await scan(makeConfig({ minConfidence: 0 }));
+    const lowConfidence = allResult.findings.filter((f) => f.confidence < 0.5);
+    expect(lowConfidence.length).toBeGreaterThan(0);
+
+    // With minConfidence=50 (default), comment matches are filtered out
+    const filteredResult = await scan(makeConfig({ minConfidence: 50 }));
+    const stillLow = filteredResult.findings.filter((f) => f.confidence < 0.5);
+    expect(stillLow.length).toBe(0);
+
+    // The filtered result should have fewer findings than the unfiltered one
+    expect(filteredResult.findings.length).toBeLessThan(
+      allResult.findings.length,
+    );
+  });
+
   it("provides location information", async () => {
     const result = await scan(makeConfig());
 
