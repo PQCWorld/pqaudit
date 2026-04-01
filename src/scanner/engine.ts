@@ -98,15 +98,43 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
     return a.location.file.localeCompare(b.location.file);
   });
 
+  // Deduplicate findings with same ruleId + file
+  const deduped = config.dedupe !== false ? deduplicateFindings(filtered) : filtered;
+
   // Build summary
-  const summary = buildSummary(filtered, uniqueFiles.length);
+  const summary = buildSummary(deduped, uniqueFiles.length);
 
   return {
     timestamp: new Date().toISOString(),
     target: config.target,
-    findings: filtered,
+    findings: deduped,
     summary,
   };
+}
+
+function deduplicateFindings(findings: Finding[]): Finding[] {
+  const groups = new Map<string, Finding[]>();
+
+  for (const f of findings) {
+    const key = `${f.ruleId}\0${f.location.file}`;
+    const group = groups.get(key);
+    if (group) {
+      group.push(f);
+    } else {
+      groups.set(key, [f]);
+    }
+  }
+
+  const result: Finding[] = [];
+  for (const group of groups.values()) {
+    const first = { ...group[0] };
+    if (group.length > 1) {
+      first.occurrences = group.length;
+    }
+    result.push(first);
+  }
+
+  return result;
 }
 
 function buildSummary(findings: Finding[], filesScanned: number): ScanSummary {

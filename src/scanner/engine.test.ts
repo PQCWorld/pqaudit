@@ -119,4 +119,40 @@ describe("scan engine", () => {
       expect(f.location.line).toBeGreaterThan(0);
     }
   });
+
+  it("deduplicates findings with same ruleId and file", async () => {
+    const all = await scan(makeConfig({ dedupe: false }));
+    const deduped = await scan(makeConfig({ dedupe: true }));
+
+    // Deduplication should produce fewer or equal findings
+    expect(deduped.findings.length).toBeLessThanOrEqual(all.findings.length);
+
+    // Any finding that was collapsed should have occurrences > 1
+    const withOccurrences = deduped.findings.filter(
+      (f) => f.occurrences && f.occurrences > 1,
+    );
+
+    // If there were duplicates in the full scan, we should see collapsed entries
+    // Count duplicates in the full scan by ruleId + file
+    const keys = all.findings.map((f) => `${f.ruleId}\0${f.location.file}`);
+    const uniqueKeys = new Set(keys);
+    const hasDuplicates = keys.length > uniqueKeys.size;
+
+    if (hasDuplicates) {
+      expect(withOccurrences.length).toBeGreaterThan(0);
+
+      // The sum of all occurrences should equal the original count
+      let totalOccurrences = 0;
+      for (const f of deduped.findings) {
+        totalOccurrences += f.occurrences ?? 1;
+      }
+      expect(totalOccurrences).toBe(all.findings.length);
+    }
+
+    // Each deduped finding should be unique by ruleId + file
+    const dedupedKeys = deduped.findings.map(
+      (f) => `${f.ruleId}\0${f.location.file}`,
+    );
+    expect(new Set(dedupedKeys).size).toBe(dedupedKeys.length);
+  });
 });
