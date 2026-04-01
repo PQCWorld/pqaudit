@@ -71,7 +71,10 @@ export function formatText(result: ScanResult): string {
         ? `${f.location.file}:${f.location.line}`
         : f.location.file;
 
-      lines.push(color(`  [${icon}] ${f.algorithm} — ${f.description}`));
+      const occLabel = f.occurrences && f.occurrences > 1
+        ? ` (${f.occurrences} occurrences)`
+        : "";
+      lines.push(color(`  [${icon}] ${f.algorithm} — ${f.description}${occLabel}`));
       lines.push(chalk.dim(`      ${loc}`));
       if (f.location.snippet) {
         lines.push(chalk.dim(`      > ${f.location.snippet}`));
