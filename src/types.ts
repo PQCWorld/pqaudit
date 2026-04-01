@@ -32,6 +32,8 @@ export interface Finding {
   detectionMethod: DetectionMethod;
   /** Confidence score 0.0-1.0 */
   confidence: number;
+  /** Number of occurrences when deduplicated (1 if not set) */
+  occurrences?: number;
 }
 
 export interface FindingLocation {
@@ -85,6 +87,8 @@ export interface ScanConfig {
   scanDependencies: boolean;
   /** Custom rules directory */
   rulesDir?: string;
+  /** Deduplicate findings with same ruleId + file (default: true) */
+  dedupe: boolean;
 }
 
 /** Scan result summary */
