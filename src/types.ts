@@ -32,6 +32,8 @@ export interface Finding {
   detectionMethod: DetectionMethod;
   /** Confidence score 0.0-1.0 */
   confidence: number;
+  /** Number of occurrences when deduplicated (1 if not set) */
+  occurrences?: number;
 }
 
 export interface FindingLocation {
@@ -87,6 +89,8 @@ export interface ScanConfig {
   rulesDir?: string;
   /** Minimum confidence threshold 0-100 (findings below this are filtered out, default 50) */
   minConfidence?: number;
+  /** Deduplicate findings with same ruleId + file (default: true) */
+  dedupe: boolean;
 }
 
 /** Scan result summary */
