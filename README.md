@@ -1,5 +1,9 @@
 # pqaudit
 
+[![CI](https://github.com/PQCWorld/pqaudit/actions/workflows/ci.yml/badge.svg)](https://github.com/PQCWorld/pqaudit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/pqaudit)](https://www.npmjs.com/package/pqaudit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Scan codebases for quantum-vulnerable cryptography. Get a clear picture of what needs to migrate before [Q-Day](https://en.wikipedia.org/wiki/Q-day).
 
 pqaudit detects usage of RSA, ECDSA, Ed25519, ECDH, DH, and other algorithms broken by Shor's algorithm. It also identifies already-migrated PQC usage (ML-KEM, ML-DSA, SLH-DSA) so you can track migration progress. Output as human-readable text, JSON, [CycloneDX CBOM](https://cyclonedx.org/capabilities/cbom/), or [SARIF](https://sarifweb.azurewebsites.net/) for GitHub Code Scanning.
@@ -39,6 +43,12 @@ pqaudit . --format sarif --output results.sarif
 # CI mode — exit code 1 if critical/high findings exist
 pqaudit . --ci
 
+# Show all findings including low-confidence comment matches
+pqaudit . --min-confidence 0
+
+# Show every occurrence instead of collapsing per file
+pqaudit . --no-dedupe
+
 # Skip dependency scanning
 pqaudit . --no-deps
 
@@ -46,25 +56,45 @@ pqaudit . --no-deps
 pqaudit . --rules ./my-rules.yaml
 ```
 
+### All options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-f, --format <format>` | Output format: `text`, `json`, `cbom`, `sarif` | `text` |
+| `-o, --output <file>` | Write output to file | stdout |
+| `-s, --severity <level>` | Minimum severity: `critical`, `high`, `medium`, `low`, `safe` | `safe` |
+| `--min-confidence <0-100>` | Filter findings below this confidence threshold | `50` |
+| `--no-dedupe` | Show all occurrences instead of collapsing per file | dedupe on |
+| `--no-deps` | Skip npm dependency scanning | scan deps |
+| `--include <patterns...>` | Glob patterns to include | all source files |
+| `--exclude <patterns...>` | Additional glob patterns to exclude | node_modules, dist, etc. |
+| `--rules <path>` | Path to custom rules YAML file | built-in rules |
+| `--ci` | Exit code 1 if critical or high findings exist | off |
+
 ## Example output
 
 ```
   pqaudit — Post-Quantum Cryptography Readiness Scanner
   Scanned: ./my-project
-  Date: 2026-04-01T00:00:00.000Z
 
   NOT PQC READY — Quantum-vulnerable cryptography detected
 
-  Files scanned: 65  |  Findings: 18
-  Critical: 12  High: 2  Medium: 1  Low: 0  Safe: 3
+  Files scanned: 65  |  Findings: 12
+  Critical: 7  High: 2  Medium: 1  Low: 0  Safe: 2
 
-  --- CRITICAL (12) ---
+  --- CRITICAL (7) ---
 
-  [!!] Ed25519 — Ed25519 signatures — elliptic curve, vulnerable to Shor's algorithm
+  [!!] Ed25519 — Ed25519 signatures — vulnerable to Shor's algorithm (14 occurrences)
       src/crypto/signing.ts:14
       > import { sign, verify } from "@noble/ed25519";
       Fix: ML-DSA-65 (FIPS 204) or hybrid Ed25519+ML-DSA-65
       Confidence: 90% | Effort: moderate | Via: regex
+
+  [!!] RSA — RSA signature — vulnerable to quantum factoring (3 occurrences)
+      src/auth/jwt.ts:42
+      > jwt.sign(payload, key, { algorithm: "RS256" });
+      Fix: ML-DSA-65 (FIPS 204)
+      Confidence: 85% | Effort: complex | Via: regex
   ...
 ```
 
@@ -156,6 +186,8 @@ Rules are defined in YAML:
     - "import.*myVulnerableLib"
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full rule schema and how to submit new rules.
+
 ## Detection methods
 
 Currently implements L0 (regex) detection. Planned:
@@ -164,6 +196,10 @@ Currently implements L0 (regex) detection. Planned:
 - **L2**: Data flow / taint analysis for tracing cryptographic data through call chains
 - **Network scanning**: TLS/SSH endpoint analysis
 - **More languages**: Cargo.toml, build.gradle, requirements.txt dependency scanning
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on submitting rules, bug fixes, and new features.
 
 ## References
 
