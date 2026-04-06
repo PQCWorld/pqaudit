@@ -7,6 +7,7 @@ import { formatText } from "./reporter/text.js";
 import { formatJson } from "./reporter/json.js";
 import { formatCbom } from "./reporter/cbom.js";
 import { formatSarif } from "./reporter/sarif.js";
+import { formatHtml } from "./reporter/html.js";
 import type { ScanConfig, Severity } from "./types.js";
 
 const program = new Command();
@@ -20,7 +21,7 @@ program
   .argument("[target]", "Directory to scan", ".")
   .option(
     "-f, --format <format>",
-    "Output format: text, json, cbom, sarif",
+    "Output format: text, json, cbom, sarif, html",
     "text",
   )
   .option("-o, --output <file>", "Write output to file instead of stdout")
@@ -63,6 +64,9 @@ program
         break;
       case "sarif":
         output = formatSarif(result);
+        break;
+      case "html":
+        output = formatHtml(result);
         break;
       case "text":
       default:
