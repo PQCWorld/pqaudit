@@ -120,6 +120,46 @@ describe("scan engine", () => {
     }
   });
 
+  it("detects protocol and config vulnerabilities", async () => {
+    const result = await scan(makeConfig({ dedupe: false }));
+
+    // Should find TLS vulnerable protocol (high)
+    const tlsProtocol = result.findings.filter(
+      (f) => f.ruleId === "TLS_VULNERABLE_PROTOCOL",
+    );
+    expect(tlsProtocol.length).toBeGreaterThan(0);
+
+    // Should find ECDHE cipher suites (critical)
+    const ecdheCipher = result.findings.filter(
+      (f) => f.ruleId === "TLS_ECDHE_CIPHER",
+    );
+    expect(ecdheCipher.length).toBeGreaterThan(0);
+
+    // Should find SSH RSA key type (critical)
+    const sshRsa = result.findings.filter(
+      (f) => f.ruleId === "SSH_RSA_KEY_TYPE",
+    );
+    expect(sshRsa.length).toBeGreaterThan(0);
+
+    // Should find SSH vulnerable key exchange (critical)
+    const sshKex = result.findings.filter(
+      (f) => f.ruleId === "SSH_VULNERABLE_KEX",
+    );
+    expect(sshKex.length).toBeGreaterThan(0);
+
+    // Should find Kubernetes TLS secret (high)
+    const k8sTls = result.findings.filter(
+      (f) => f.ruleId === "K8S_TLS_SECRET",
+    );
+    expect(k8sTls.length).toBeGreaterThan(0);
+
+    // All config findings should reference the config fixture
+    const configFindings = result.findings.filter(
+      (f) => f.location.file === "vulnerable-config.conf",
+    );
+    expect(configFindings.length).toBeGreaterThan(0);
+  });
+
   it("deduplicates findings with same ruleId and file", async () => {
     const all = await scan(makeConfig({ dedupe: false }));
     const deduped = await scan(makeConfig({ dedupe: true }));
