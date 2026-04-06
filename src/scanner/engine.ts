@@ -11,7 +11,13 @@ import type {
 } from "../types.js";
 import { loadRules } from "./rules.js";
 import { scanFile } from "./file-scanner.js";
-import { scanNpmDependencies } from "./dependency-scanner.js";
+import {
+  scanNpmDependencies,
+  scanCargoDependencies,
+  scanGoDependencies,
+  scanPipDependencies,
+  scanGradleDependencies,
+} from "./dependency-scanner.js";
 
 const DEFAULT_EXCLUDE = [
   "**/node_modules/**",
@@ -80,6 +86,10 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
   if (config.scanDependencies) {
     const depFindings = scanNpmDependencies(target);
     allFindings.push(...depFindings);
+    allFindings.push(...scanCargoDependencies(target));
+    allFindings.push(...scanGoDependencies(target));
+    allFindings.push(...scanPipDependencies(target));
+    allFindings.push(...scanGradleDependencies(target));
   }
 
   // Filter by minimum confidence
