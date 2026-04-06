@@ -34,13 +34,24 @@ const DEFAULT_EXCLUDE = [
 const SOURCE_EXTENSIONS =
   "**/*.{js,mjs,cjs,jsx,ts,tsx,mts,cts,py,go,rs,java,kt,kts,cs,c,h,cpp,cc,hpp,swift,rb,php,toml,yaml,yml,json,xml,conf,cfg,ini,env,pem,crt,cer}";
 
+/** Extensionless config files relevant to crypto/protocol detection */
+const CONFIG_FILE_NAMES = [
+  "**/Dockerfile",
+  "**/Dockerfile.*",
+  "**/sshd_config",
+  "**/ssh_config",
+  "**/nginx.conf",
+  "**/haproxy.cfg",
+  "**/.ssh/config",
+];
+
 export async function scan(config: ScanConfig): Promise<ScanResult> {
   const target = resolve(config.target);
   const rules = loadRules(config.rulesDir);
 
   // Discover files
   const excludePatterns = [...DEFAULT_EXCLUDE, ...(config.exclude ?? [])];
-  const includePatterns = config.include ?? [SOURCE_EXTENSIONS];
+  const includePatterns = config.include ?? [SOURCE_EXTENSIONS, ...CONFIG_FILE_NAMES];
 
   const files: string[] = [];
   for (const pattern of includePatterns) {

@@ -73,9 +73,23 @@ const BINARY_EXTENSIONS = new Set([
   ".pdf",
 ]);
 
+/** Filename patterns that map to a language (for extensionless config files) */
+const FILENAME_MAP: Record<string, string> = {
+  "dockerfile": "config",
+  "sshd_config": "config",
+  "ssh_config": "config",
+  "config": "config",
+};
+
 export function getLanguage(filePath: string): string | null {
   const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
-  return LANG_MAP[ext] ?? null;
+  if (LANG_MAP[ext]) return LANG_MAP[ext];
+
+  // Check filename for extensionless config files
+  const basename = filePath.slice(filePath.lastIndexOf("/") + 1).toLowerCase();
+  // Handle "Dockerfile.prod" → "dockerfile"
+  const rootName = basename.split(".")[0];
+  return FILENAME_MAP[basename] ?? FILENAME_MAP[rootName] ?? null;
 }
 
 export function isBinary(filePath: string): boolean {
