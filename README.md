@@ -63,12 +63,12 @@ pqaudit . --rules ./my-rules.yaml
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-f, --format <format>` | Output format: `text`, `json`, `cbom`, `sarif` | `text` |
+| `-f, --format <format>` | Output format: `text`, `json`, `cbom`, `sarif`, `html` | `text` |
 | `-o, --output <file>` | Write output to file | stdout |
 | `-s, --severity <level>` | Minimum severity: `critical`, `high`, `medium`, `low`, `safe` | `safe` |
 | `--min-confidence <0-100>` | Filter findings below this confidence threshold | `50` |
 | `--no-dedupe` | Show all occurrences instead of collapsing per file | dedupe on |
-| `--no-deps` | Skip npm dependency scanning | scan deps |
+| `--no-deps` | Skip dependency scanning | scan deps |
 | `--include <patterns...>` | Glob patterns to include | all source files |
 | `--exclude <patterns...>` | Additional glob patterns to exclude | node_modules, dist, etc. |
 | `--rules <path>` | Path to custom rules YAML file | built-in rules |
@@ -91,13 +91,13 @@ pqaudit . --rules ./my-rules.yaml
       src/crypto/signing.ts:14
       > import { sign, verify } from "@noble/ed25519";
       Fix: ML-DSA-65 (FIPS 204) or hybrid Ed25519+ML-DSA-65
-      Confidence: 90% | Effort: moderate | Via: regex
+      Confidence: 98% | Effort: moderate | Via: ast
 
   [!!] RSA — RSA signature — vulnerable to quantum factoring (3 occurrences)
       src/auth/jwt.ts:42
       > jwt.sign(payload, key, { algorithm: "RS256" });
       Fix: ML-DSA-65 (FIPS 204)
-      Confidence: 85% | Effort: complex | Via: regex
+      Confidence: 96% | Effort: complex | Via: ast
   ...
 ```
 
@@ -112,15 +112,27 @@ pqaudit . --rules ./my-rules.yaml
 | ECDH / X25519 / DH | Shor's on key exchange | ML-KEM-768 (FIPS 203) |
 | DSA | Shor's algorithm | ML-DSA-65 (FIPS 204) |
 
-### High (weakened by quantum)
+### High (weakened by quantum or outdated protocols)
 
 | Algorithm | Threat | Replacement |
 |-----------|--------|-------------|
 | AES-128 | Grover reduces to 64-bit | AES-256 |
+| TLS 1.0/1.1, SSLv3 | Deprecated protocols | TLS 1.3 |
+| Kubernetes TLS secrets | May use vulnerable certs | Rotate to PQC when available |
+| Dockerfile crypto installs | Review for vulnerable algorithms | PQC-capable libraries |
 
 ### Safe (already quantum-resistant)
 
 ML-KEM (Kyber), ML-DSA (Dilithium), SLH-DSA (SPHINCS+), AES-256, ChaCha20-Poly1305, SHA-256, SHA-3
+
+### Protocol and config detection
+
+pqaudit also scans configuration files for quantum-vulnerable settings:
+
+- **SSH**: RSA/ECDSA key types, DH/ECDH key exchange in `sshd_config`/`ssh_config`
+- **TLS**: deprecated protocols and vulnerable cipher suites in nginx/apache/haproxy configs
+- **Kubernetes**: TLS secrets and cert-manager RSA private keys
+- **Docker**: crypto library installs in Dockerfiles
 
 ## Output formats
 
@@ -138,6 +150,14 @@ Generates SARIF 2.1.0 output compatible with GitHub's code scanning. Upload via 
 
 ```bash
 pqaudit . --format sarif --output results.sarif
+```
+
+### HTML report
+
+Self-contained HTML file with a visual dashboard — severity breakdown, PQC readiness score, and findings table. No external dependencies, works offline.
+
+```bash
+pqaudit . --format html --output report.html
 ```
 
 ## GitHub Action
@@ -163,13 +183,17 @@ jobs:
 
 ## Dependency scanning
 
-pqaudit checks `package.json` for known cryptographic libraries and flags quantum-vulnerable dependencies:
+pqaudit checks manifest files for known cryptographic libraries across five ecosystems:
 
-- `@noble/ed25519`, `@noble/secp256k1` — ECC signatures
-- `tweetnacl`, `elliptic`, `node-rsa` — various asymmetric crypto
-- `jsonwebtoken`, `jose` — JWT libraries (typically RSA/ECDSA)
-- `@solana/web3.js`, `ethers`, `web3` — blockchain (Ed25519/secp256k1)
-- `@noble/post-quantum` — flagged as **safe**
+| Ecosystem | Manifest files | Example packages |
+|-----------|---------------|-----------------|
+| **npm** | `package.json` | `@noble/ed25519`, `node-rsa`, `jsonwebtoken`, `ethers` |
+| **Rust** | `Cargo.toml` | `ed25519-dalek`, `rsa`, `ring`, `p256`, `pqcrypto` |
+| **Go** | `go.mod` | `golang.org/x/crypto`, `cloudflare/circl` |
+| **Python** | `requirements.txt`, `pyproject.toml` | `cryptography`, `pycryptodome`, `paramiko` |
+| **Java** | `build.gradle`, `pom.xml` | BouncyCastle, Google Tink |
+
+PQC-safe libraries (`@noble/post-quantum`, `pqcrypto`, `cloudflare/circl`, `bcpqc`) are flagged as **safe** for inventory tracking.
 
 ## Custom rules
 
@@ -193,12 +217,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full rule schema and how to submi
 
 ## Detection methods
 
-Currently implements L0 (regex) detection. Planned:
+pqaudit uses two detection layers that run together:
 
-- **L1**: AST-based analysis via tree-sitter for semantic understanding and fewer false positives
+- **L0 (regex)**: Pattern matching across all supported languages and config files. Works on any file type. Confidence varies by context (0.3 in comments, 0.7-0.9 in code).
+- **L1 (AST)**: Tree-sitter parsing for JavaScript/TypeScript. Detects actual imports, function calls, and API usage — not just text matches. Eliminates false positives from comments and documentation. Confidence 0.95-0.98.
+
+When both scanners find the same crypto usage, deduplication keeps the higher-confidence finding.
+
+Planned:
+
 - **L2**: Data flow / taint analysis for tracing cryptographic data through call chains
 - **Network scanning**: TLS/SSH endpoint analysis
-- **More languages**: Cargo.toml, build.gradle, requirements.txt dependency scanning
 
 ## Contributing
 
