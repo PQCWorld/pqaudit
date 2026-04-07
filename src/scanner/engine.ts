@@ -1,4 +1,5 @@
 import { resolve, relative } from "node:path";
+import { readFileSync } from "node:fs";
 import { glob } from "glob";
 import type {
   CryptoCategory,
@@ -10,7 +11,8 @@ import type {
   SEVERITY_ORDER,
 } from "../types.js";
 import { loadRules } from "./rules.js";
-import { scanFile } from "./file-scanner.js";
+import { scanFile, getLanguage, isBinary } from "./file-scanner.js";
+import { scanFileAST } from "./ast-scanner.js";
 import {
   scanNpmDependencies,
   scanCargoDependencies,
@@ -75,11 +77,34 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
 
   // Scan files
   const allFindings: Finding[] = [];
+  const astPromises: Promise<Finding[]>[] = [];
 
   for (const file of uniqueFiles) {
+    if (isBinary(file)) continue;
+
     const rel = relative(target, file);
-    const fileFindings = scanFile(file, rel, rules);
+    let content: string;
+    try {
+      content = readFileSync(file, "utf-8");
+    } catch {
+      continue;
+    }
+
+    // Regex scan
+    const fileFindings = scanFile(file, rel, rules, content);
     allFindings.push(...fileFindings);
+
+    // AST scan for JS/TS files
+    const language = getLanguage(file);
+    if (language === "javascript" || language === "typescript") {
+      astPromises.push(scanFileAST(file, rel, content, language, rules));
+    }
+  }
+
+  // Await all AST scans
+  const astResults = await Promise.all(astPromises);
+  for (const findings of astResults) {
+    allFindings.push(...findings);
   }
 
   // Scan dependencies
@@ -148,11 +173,13 @@ function deduplicateFindings(findings: Finding[]): Finding[] {
 
   const result: Finding[] = [];
   for (const group of groups.values()) {
-    const first = { ...group[0] };
+    // Prefer the highest-confidence finding (AST > regex)
+    group.sort((a, b) => b.confidence - a.confidence);
+    const best = { ...group[0] };
     if (group.length > 1) {
-      first.occurrences = group.length;
+      best.occurrences = group.length;
     }
-    result.push(first);
+    result.push(best);
   }
 
   return result;
