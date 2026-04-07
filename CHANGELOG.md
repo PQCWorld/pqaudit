@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/PQCWorld/pqaudit/compare/v0.3.0...v0.4.0) (2026-04-07)
+
+
+### Features
+
+* add AST-based scanning for JS/TS via tree-sitter ([8e7c638](https://github.com/PQCWorld/pqaudit/commit/8e7c638d0d7835e97423a92cc567f1d7003d2257))
+
+
+### Bug Fixes
+
+* exclude scanner source from self-scan CI ([ba104e4](https://github.com/PQCWorld/pqaudit/commit/ba104e45ee080529b1b8999a58390acda7cadb74))
+
 ## [0.3.0](https://github.com/PQCWorld/pqaudit/compare/v0.2.0...v0.3.0) (2026-04-06)
 
 
