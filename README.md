@@ -57,6 +57,12 @@ pqaudit . --no-deps
 
 # Use custom rules
 pqaudit . --rules ./my-rules.yaml
+
+# Scan TLS/SSH endpoints for quantum-vulnerable crypto
+pqaudit . --scan-endpoint api.example.com:443 --scan-endpoint git.example.com:22
+
+# Scan endpoints only (no code scanning)
+pqaudit --scan-endpoint example.com:443 --scan-endpoint example.com:22
 ```
 
 ### All options
@@ -72,6 +78,8 @@ pqaudit . --rules ./my-rules.yaml
 | `--include <patterns...>` | Glob patterns to include | all source files |
 | `--exclude <patterns...>` | Additional glob patterns to exclude | node_modules, dist, etc. |
 | `--rules <path>` | Path to custom rules YAML file | built-in rules |
+| `--scan-endpoint <endpoints...>` | TLS/SSH endpoints to probe (`host:port`) | none |
+| `--network-timeout <ms>` | Network connection timeout | `5000` |
 | `--ci` | Exit code 1 if critical or high findings exist | off |
 
 ## Example output
@@ -191,14 +199,37 @@ Rules are defined in YAML:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full rule schema and how to submit new rules.
 
+## Network scanning
+
+Probe live TLS and SSH endpoints for quantum-vulnerable crypto configurations:
+
+```bash
+pqaudit --scan-endpoint api.example.com:443 --scan-endpoint git.example.com:22
+```
+
+**TLS endpoints** (any port, or specify `tls://host:port`):
+- Negotiated protocol version (TLS 1.2 vs 1.3)
+- Cipher suite key exchange (RSA static, ECDHE — both quantum-vulnerable)
+- Certificate public key algorithm and size (RSA, ECDSA)
+
+**SSH endpoints** (port 22 auto-detected, or specify `ssh://host:port`):
+- Server banner detection (OpenSSH, etc.)
+- Flags quantum-vulnerable DH/ECDH key exchange
+
+Network findings have 100% confidence (observed facts, not pattern matches) and appear alongside code findings in all output formats.
+
 ## Detection methods
 
-Currently implements L0 (regex) detection. Planned:
+pqaudit uses four detection methods:
 
-- **L1**: AST-based analysis via tree-sitter for semantic understanding and fewer false positives
+- **L0 (regex)**: Pattern matching across all supported languages and config files
+- **L1 (AST)**: Tree-sitter parsing for JS/TS — detects actual imports, function calls, API usage (0.95-0.98 confidence)
+- **Dependency**: Manifest file scanning across npm, Cargo, Go, pip, and Gradle/Maven
+- **Network**: Live TLS/SSH endpoint probing for cipher suites and certificate algorithms (100% confidence)
+
+Planned:
+
 - **L2**: Data flow / taint analysis for tracing cryptographic data through call chains
-- **Network scanning**: TLS/SSH endpoint analysis
-- **More languages**: Cargo.toml, build.gradle, requirements.txt dependency scanning
 
 ## Contributing
 
