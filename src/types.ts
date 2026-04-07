@@ -95,6 +95,12 @@ export interface ScanConfig {
   endpoints?: EndpointSpec[];
   /** Network connection timeout in milliseconds */
   networkTimeout?: number;
+  /** Path to existing SBOM file (CycloneDX or SPDX JSON) */
+  sbomInput?: string;
+  /** SBOM format hint (auto-detected if omitted) */
+  sbomFormat?: "cyclonedx" | "spdx";
+  /** Path to policy YAML file */
+  policyFile?: string;
 }
 
 /** Scan result summary */
@@ -107,6 +113,10 @@ export interface ScanResult {
   findings: Finding[];
   /** Summary statistics */
   summary: ScanSummary;
+  /** Policy violations (if --policy was used) */
+  policyViolations?: PolicyViolation[];
+  /** Enriched SBOM (if --sbom was used) */
+  enrichedSbom?: unknown;
 }
 
 export interface ScanSummary {
@@ -115,6 +125,52 @@ export interface ScanSummary {
   bySeverity: Record<Severity, number>;
   byCategory: Record<CryptoCategory, number>;
   pqcReady: boolean;
+}
+
+/** A crypto policy rule for organizational compliance */
+export interface Policy {
+  id: string;
+  description?: string;
+  /** Algorithm name(s) to match (e.g. "RSA" or ["MD5", "SHA-1"]) */
+  algorithm?: string | string[];
+  /** Category to match */
+  category?: CryptoCategory | CryptoCategory[];
+  /** Severity levels to match */
+  severity?: Severity | Severity[];
+  /** Minimum confidence — findings below this are skipped */
+  min_confidence?: number;
+  /** What to do on violation */
+  action: "warn" | "block";
+  /** ISO date — policy only applies after this date */
+  deadline?: string;
+  /** Human-readable violation message */
+  message?: string;
+}
+
+/** A policy violation tied to a specific finding */
+export interface PolicyViolation {
+  policyId: string;
+  description: string;
+  action: "warn" | "block";
+  finding: Finding;
+  message: string;
+  deadline?: string;
+}
+
+/** A normalized SBOM component */
+export interface SbomComponent {
+  name: string;
+  version?: string;
+  purl?: string;
+  type: string;
+  original: unknown;
+}
+
+/** A parsed SBOM document */
+export interface SbomDocument {
+  format: "cyclonedx" | "spdx";
+  components: SbomComponent[];
+  raw: unknown;
 }
 
 /** An endpoint to probe for TLS/SSH crypto configuration */
