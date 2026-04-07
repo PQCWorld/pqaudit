@@ -101,6 +101,7 @@ export function scanFile(
   filePath: string,
   relativePath: string,
   rules: DetectionRule[],
+  preloadedContent?: string,
 ): Finding[] {
   if (isBinary(filePath)) return [];
 
@@ -109,10 +110,14 @@ export function scanFile(
   const findings: Finding[] = [];
 
   let content: string;
-  try {
-    content = readFileSync(filePath, "utf-8");
-  } catch {
-    return [];
+  if (preloadedContent !== undefined) {
+    content = preloadedContent;
+  } else {
+    try {
+      content = readFileSync(filePath, "utf-8");
+    } catch {
+      return [];
+    }
   }
 
   // Skip very large files (likely generated/vendor)
