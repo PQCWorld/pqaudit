@@ -9,7 +9,7 @@ Scan codebases for quantum-vulnerable cryptography. Get a clear picture of what 
 
 ![pqaudit demo](demo.gif)
 
-pqaudit detects usage of RSA, ECDSA, Ed25519, ECDH, DH, and other algorithms broken by Shor's algorithm. It also identifies already-migrated PQC usage (ML-KEM, ML-DSA, SLH-DSA) so you can track migration progress. Output as human-readable text, JSON, [CycloneDX CBOM](https://cyclonedx.org/capabilities/cbom/), or [SARIF](https://sarifweb.azurewebsites.net/) for GitHub Code Scanning.
+pqaudit detects usage of RSA, ECDSA, Ed25519, ECDH, DH, and other algorithms broken by Shor's algorithm. It also identifies already-migrated PQC usage (ML-KEM, ML-DSA, SLH-DSA) so you can track migration progress. Output as human-readable text, JSON, [CycloneDX CBOM](https://cyclonedx.org/capabilities/cbom/), [SARIF](https://sarifweb.azurewebsites.net/) for GitHub Code Scanning, or a self-contained HTML report.
 
 ## Why now
 
@@ -69,12 +69,12 @@ pqaudit --scan-endpoint example.com:443 --scan-endpoint example.com:22
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-f, --format <format>` | Output format: `text`, `json`, `cbom`, `sarif` | `text` |
+| `-f, --format <format>` | Output format: `text`, `json`, `cbom`, `sarif`, `html` | `text` |
 | `-o, --output <file>` | Write output to file | stdout |
 | `-s, --severity <level>` | Minimum severity: `critical`, `high`, `medium`, `low`, `safe` | `safe` |
 | `--min-confidence <0-100>` | Filter findings below this confidence threshold | `50` |
 | `--no-dedupe` | Show all occurrences instead of collapsing per file | dedupe on |
-| `--no-deps` | Skip npm dependency scanning | scan deps |
+| `--no-deps` | Skip dependency scanning | scan deps |
 | `--include <patterns...>` | Glob patterns to include | all source files |
 | `--exclude <patterns...>` | Additional glob patterns to exclude | node_modules, dist, etc. |
 | `--rules <path>` | Path to custom rules YAML file | built-in rules |
@@ -99,13 +99,19 @@ pqaudit --scan-endpoint example.com:443 --scan-endpoint example.com:22
       src/crypto/signing.ts:14
       > import { sign, verify } from "@noble/ed25519";
       Fix: ML-DSA-65 (FIPS 204) or hybrid Ed25519+ML-DSA-65
-      Confidence: 90% | Effort: moderate | Via: regex
+      Confidence: 98% | Effort: moderate | Via: ast
 
   [!!] RSA — RSA signature — vulnerable to quantum factoring (3 occurrences)
       src/auth/jwt.ts:42
       > jwt.sign(payload, key, { algorithm: "RS256" });
       Fix: ML-DSA-65 (FIPS 204)
-      Confidence: 85% | Effort: complex | Via: regex
+      Confidence: 96% | Effort: complex | Via: ast
+
+  [!!] ECDSA — Certificate uses ECDSA 256-bit key — vulnerable to Shor's algorithm
+      tls://api.example.com:443
+      > ECDSA 256-bit key, TLSv1.3
+      Fix: Post-quantum certificate algorithms when available
+      Confidence: 100% | Effort: complex | Via: network
   ...
 ```
 
@@ -120,11 +126,13 @@ pqaudit --scan-endpoint example.com:443 --scan-endpoint example.com:22
 | ECDH / X25519 / DH | Shor's on key exchange | ML-KEM-768 (FIPS 203) |
 | DSA | Shor's algorithm | ML-DSA-65 (FIPS 204) |
 
-### High (weakened by quantum)
+### High (weakened by quantum or outdated protocols)
 
 | Algorithm | Threat | Replacement |
 |-----------|--------|-------------|
 | AES-128 | Grover reduces to 64-bit | AES-256 |
+| TLS 1.0/1.1, SSLv3 | Deprecated protocols | TLS 1.3 |
+| SSH (detected via network) | DH/ECDH key exchange | PQ hybrid key exchange |
 
 ### Safe (already quantum-resistant)
 
@@ -146,6 +154,14 @@ Generates SARIF 2.1.0 output compatible with GitHub's code scanning. Upload via 
 
 ```bash
 pqaudit . --format sarif --output results.sarif
+```
+
+### HTML report
+
+Self-contained HTML file with a visual dashboard — severity breakdown, PQC readiness score, and findings table. No external dependencies, works offline.
+
+```bash
+pqaudit . --format html --output report.html
 ```
 
 ## GitHub Action
@@ -171,13 +187,17 @@ jobs:
 
 ## Dependency scanning
 
-pqaudit checks `package.json` for known cryptographic libraries and flags quantum-vulnerable dependencies:
+pqaudit checks manifest files for known cryptographic libraries across five ecosystems:
 
-- `@noble/ed25519`, `@noble/secp256k1` — ECC signatures
-- `tweetnacl`, `elliptic`, `node-rsa` — various asymmetric crypto
-- `jsonwebtoken`, `jose` — JWT libraries (typically RSA/ECDSA)
-- `@solana/web3.js`, `ethers`, `web3` — blockchain (Ed25519/secp256k1)
-- `@noble/post-quantum` — flagged as **safe**
+| Ecosystem | Manifest files | Example packages |
+|-----------|---------------|-----------------|
+| **npm** | `package.json` | `@noble/ed25519`, `node-rsa`, `jsonwebtoken`, `ethers` |
+| **Rust** | `Cargo.toml` | `ed25519-dalek`, `rsa`, `ring`, `p256`, `pqcrypto` |
+| **Go** | `go.mod` | `golang.org/x/crypto`, `cloudflare/circl` |
+| **Python** | `requirements.txt`, `pyproject.toml` | `cryptography`, `pycryptodome`, `paramiko` |
+| **Java** | `build.gradle`, `pom.xml` | BouncyCastle, Google Tink |
+
+PQC-safe libraries (`@noble/post-quantum`, `pqcrypto`, `cloudflare/circl`) are flagged as **safe** for inventory tracking.
 
 ## Custom rules
 
@@ -198,6 +218,17 @@ Rules are defined in YAML:
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full rule schema and how to submit new rules.
+
+## Protocol and config detection
+
+pqaudit scans configuration files for quantum-vulnerable crypto settings:
+
+- **SSH**: RSA/ECDSA key types, DH/ECDH key exchange in `sshd_config`/`ssh_config`
+- **TLS**: deprecated protocols (1.0/1.1/SSLv3) and vulnerable cipher suites in nginx/apache/haproxy configs
+- **Kubernetes**: TLS secrets and cert-manager RSA private keys
+- **Docker**: crypto library installs in Dockerfiles
+
+Extensionless config files (`Dockerfile`, `sshd_config`, `ssh_config`) are automatically detected and scanned.
 
 ## Network scanning
 
