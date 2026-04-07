@@ -1,0 +1,20 @@
+policies:
+  - id: no-rsa
+    description: "No RSA after 2025"
+    algorithm: RSA
+    action: block
+    deadline: 2025-01-01
+    message: "RSA is deprecated — migrate to ML-KEM/ML-DSA"
+
+  - id: no-weak-hashes
+    description: "MD5 and SHA-1 are forbidden"
+    algorithm: [MD5, SHA-1]
+    action: block
+
+  - id: require-pqc-signing
+    description: "Signing should use ML-DSA by 2028"
+    category: signature
+    severity: [critical, high]
+    action: warn
+    deadline: 2028-06-01
+    message: "All signing operations should migrate to ML-DSA"

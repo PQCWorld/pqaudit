@@ -37,6 +37,9 @@ program
   .option("--min-confidence <number>", "Minimum confidence 0-100 (default 50)", "50")
   .option("--dedupe", "Collapse duplicate findings per file (default: true)")
   .option("--no-dedupe", "Show all occurrences instead of collapsing duplicates")
+  .option("--sbom <file>", "Path to existing SBOM (CycloneDX or SPDX JSON) to enrich")
+  .option("--sbom-format <format>", "SBOM format: cyclonedx, spdx (auto-detected if omitted)")
+  .option("--policy <file>", "Path to policy YAML file for compliance checking")
   .option("--scan-endpoint <endpoints...>", "TLS/SSH endpoints to probe (host:port)")
   .option("--network-timeout <ms>", "Network connection timeout in ms", "5000")
   .option("--ci", "Exit with code 1 if critical/high findings exist")
@@ -73,9 +76,23 @@ program
       dedupe: opts.dedupe !== false,
       endpoints,
       networkTimeout: Number(opts.networkTimeout),
+      sbomInput: opts.sbom,
+      sbomFormat: opts.sbomFormat,
+      policyFile: opts.policy,
     };
 
     const result = await scan(config);
+
+    // If SBOM enrichment was done, output the enriched SBOM instead of normal format
+    if (result.enrichedSbom) {
+      const sbomOutput = JSON.stringify(result.enrichedSbom, null, 2);
+      if (config.output) {
+        writeFileSync(config.output, sbomOutput, "utf-8");
+        console.log(`Enriched SBOM written to ${config.output}`);
+      } else {
+        console.log(sbomOutput);
+      }
+    } else {
 
     let output: string;
     switch (config.format) {
@@ -106,8 +123,16 @@ program
       console.log(output);
     }
 
-    // CI mode: exit 1 if critical or high findings
+    } // end else (no SBOM enrichment)
+
+    // CI mode: exit 1 if critical/high findings, exit 2 if blocking policy violations
     if (opts.ci) {
+      const blockingViolations = result.policyViolations?.filter(
+        (v) => v.action === "block",
+      );
+      if (blockingViolations && blockingViolations.length > 0) {
+        process.exit(2);
+      }
       const { critical, high } = result.summary.bySeverity;
       if (critical > 0 || high > 0) {
         process.exit(1);

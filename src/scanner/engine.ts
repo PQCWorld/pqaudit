@@ -160,12 +160,30 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
   // Build summary
   const summary = buildSummary(deduped, uniqueFiles.length);
 
-  return {
+  const result: ScanResult = {
     timestamp: new Date().toISOString(),
     target: config.target,
     findings: deduped,
     summary,
   };
+
+  // Evaluate policies
+  if (config.policyFile) {
+    const { loadPolicies } = await import("../policy/loader.js");
+    const { evaluatePolicies } = await import("../policy/evaluator.js");
+    const policies = loadPolicies(config.policyFile);
+    result.policyViolations = evaluatePolicies(policies, deduped);
+  }
+
+  // Enrich SBOM
+  if (config.sbomInput) {
+    const { parseSbom } = await import("../sbom/parser.js");
+    const { enrichSbom } = await import("../sbom/enricher.js");
+    const sbom = parseSbom(config.sbomInput, config.sbomFormat);
+    result.enrichedSbom = enrichSbom(sbom, deduped);
+  }
+
+  return result;
 }
 
 function deduplicateFindings(findings: Finding[]): Finding[] {

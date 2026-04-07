@@ -91,6 +91,33 @@ export function formatText(result: ScanResult): string {
     }
   }
 
+  // Policy violations
+  if (result.policyViolations && result.policyViolations.length > 0) {
+    lines.push(
+      chalk.magenta.bold(
+        `  --- POLICY VIOLATIONS (${result.policyViolations.length}) ---`,
+      ),
+    );
+    lines.push("");
+
+    for (const v of result.policyViolations) {
+      const icon = v.action === "block" ? "BLOCK" : "WARN";
+      const color = v.action === "block" ? chalk.red : chalk.yellow;
+      const loc = v.finding.location.line
+        ? `${v.finding.location.file}:${v.finding.location.line}`
+        : v.finding.location.file;
+      const deadline = v.deadline ? ` (deadline: ${v.deadline})` : "";
+
+      lines.push(
+        color(`  [${icon}] ${v.policyId}: ${v.message}${deadline}`),
+      );
+      lines.push(
+        chalk.dim(`      ${v.finding.algorithm} in ${loc}`),
+      );
+      lines.push("");
+    }
+  }
+
   return lines.join("\n");
 }
 

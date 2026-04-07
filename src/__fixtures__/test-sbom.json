@@ -1,0 +1,36 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-04-07T00:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "test-app",
+      "version": "1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/node-rsa@1.1.1",
+      "name": "node-rsa",
+      "version": "1.1.1",
+      "purl": "pkg:npm/node-rsa@1.1.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/express@4.18.0",
+      "name": "express",
+      "version": "4.18.0",
+      "purl": "pkg:npm/express@4.18.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/@noble/ed25519@2.0.0",
+      "name": "@noble/ed25519",
+      "version": "2.0.0",
+      "purl": "pkg:npm/%40noble/ed25519@2.0.0"
+    }
+  ]
+}
