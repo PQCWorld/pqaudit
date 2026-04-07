@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/PQCWorld/pqaudit/compare/v0.4.0...v0.5.0) (2026-04-07)
+
+
+### Features
+
+* add network scanning for TLS/SSH endpoints ([6e5a4c4](https://github.com/PQCWorld/pqaudit/commit/6e5a4c4d2ca5e690742d6c5b3375a7d526ef6450))
+* add SBOM enrichment and policy engine ([aaae003](https://github.com/PQCWorld/pqaudit/commit/aaae003b39bddde9e086d287fdd22d2173258ad2))
+
+
+### Bug Fixes
+
+* exclude all src from self-scan CI ([c975c8e](https://github.com/PQCWorld/pqaudit/commit/c975c8e171c5176ea00c92a60fb0c31dc6816def))
+
 ## [0.4.0](https://github.com/PQCWorld/pqaudit/compare/v0.3.0...v0.4.0) (2026-04-07)
 
 
