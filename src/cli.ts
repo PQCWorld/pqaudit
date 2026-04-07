@@ -8,7 +8,7 @@ import { formatJson } from "./reporter/json.js";
 import { formatCbom } from "./reporter/cbom.js";
 import { formatSarif } from "./reporter/sarif.js";
 import { formatHtml } from "./reporter/html.js";
-import type { ScanConfig, Severity } from "./types.js";
+import type { EndpointSpec, ScanConfig, Severity } from "./types.js";
 
 const program = new Command();
 
@@ -37,8 +37,29 @@ program
   .option("--min-confidence <number>", "Minimum confidence 0-100 (default 50)", "50")
   .option("--dedupe", "Collapse duplicate findings per file (default: true)")
   .option("--no-dedupe", "Show all occurrences instead of collapsing duplicates")
+  .option("--scan-endpoint <endpoints...>", "TLS/SSH endpoints to probe (host:port)")
+  .option("--network-timeout <ms>", "Network connection timeout in ms", "5000")
   .option("--ci", "Exit with code 1 if critical/high findings exist")
   .action(async (target: string, opts) => {
+    const endpoints: EndpointSpec[] | undefined = opts.scanEndpoint?.map(
+      (ep: string): EndpointSpec => {
+        // Support tls:// and ssh:// prefixes
+        let protocol: "tls" | "ssh" = "tls";
+        let addr = ep;
+        if (ep.startsWith("ssh://")) {
+          protocol = "ssh";
+          addr = ep.slice(6);
+        } else if (ep.startsWith("tls://")) {
+          addr = ep.slice(6);
+        }
+        const [host, portStr] = addr.split(":");
+        const port = portStr ? parseInt(portStr, 10) : protocol === "ssh" ? 22 : 443;
+        // Auto-detect SSH from port 22
+        if (port === 22 && !ep.startsWith("tls://")) protocol = "ssh";
+        return { host, port, protocol };
+      },
+    );
+
     const config: ScanConfig = {
       target,
       format: opts.format,
@@ -50,6 +71,8 @@ program
       rulesDir: opts.rules,
       minConfidence: Number(opts.minConfidence),
       dedupe: opts.dedupe !== false,
+      endpoints,
+      networkTimeout: Number(opts.networkTimeout),
     };
 
     const result = await scan(config);

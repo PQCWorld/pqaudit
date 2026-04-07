@@ -91,6 +91,10 @@ export interface ScanConfig {
   minConfidence?: number;
   /** Deduplicate findings with same ruleId + file (default: true) */
   dedupe: boolean;
+  /** Network endpoints to probe for TLS/SSH crypto */
+  endpoints?: EndpointSpec[];
+  /** Network connection timeout in milliseconds */
+  networkTimeout?: number;
 }
 
 /** Scan result summary */
@@ -111,6 +115,13 @@ export interface ScanSummary {
   bySeverity: Record<Severity, number>;
   byCategory: Record<CryptoCategory, number>;
   pqcReady: boolean;
+}
+
+/** An endpoint to probe for TLS/SSH crypto configuration */
+export interface EndpointSpec {
+  host: string;
+  port: number;
+  protocol: "tls" | "ssh";
 }
 
 /** Severity ordering for comparisons */

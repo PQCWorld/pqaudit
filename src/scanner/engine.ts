@@ -117,6 +117,16 @@ export async function scan(config: ScanConfig): Promise<ScanResult> {
     allFindings.push(...scanGradleDependencies(target));
   }
 
+  // Scan network endpoints
+  if (config.endpoints?.length) {
+    const { scanEndpoints } = await import("./network-scanner.js");
+    const networkFindings = await scanEndpoints(
+      config.endpoints,
+      config.networkTimeout ?? 5000,
+    );
+    allFindings.push(...networkFindings);
+  }
+
   // Filter by minimum confidence
   const minConfidence = config.minConfidence ?? 50;
   const confidenceFiltered = allFindings.filter(
